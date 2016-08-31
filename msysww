@@ -1,0 +1,220 @@
+#!/usr/bin/perl
+
+use common::sense;
+use Getopt::Long;
+use Pod::Usage qw(pod2usage);
+use Cwd;
+use File::Spec;
+
+
+################################################################################
+## Configure these for newer or other mirror.
+################################################################################
+
+my $fetch_url = {
+	x86_64 => "http://sourceforge.net/projects/msys2/files/Base/x86_64/msys2-base-x86_64-20160719.tar.xz",
+	i686   => "http://sourceforge.net/projects/msys2/files/Base/i686/msys2-base-i686-20160719.tar.xz"
+};
+my $fetch_filename = {
+	x86_64 => "msys2-base-x86_64-20160719.tar.xz",
+	i686   => "msys2-base-i686-20160719.tar.xz"
+};
+
+my $shell = "msys";
+my $console = 0;
+my $prefix = "$ENV{HOME}/.msysww";
+my $arch = "x86_64";
+my $do_init = 0;
+my $do_update = 0;
+my $show_help = 0;
+
+################################################################################
+## Parse the options. See docs at the end for more info on the meaning.
+################################################################################
+if (!GetOptions( 
+	"s|shell=s" => \$shell,
+	"c|console" => \$console,
+	"p|prefix=s" => \$prefix,
+	"a|arch=s" => \$arch,
+	"i|init" => \$do_init,
+	"u|update" => \$do_update,
+	"h|help" => \$show_help,
+)) {
+	pod2usage(1);
+	die ("Can not parse options");
+}
+
+if ($show_help) {
+	pod2usage(1);
+}
+
+################################################################################
+# Check if the parameters are sane
+################################################################################
+
+$shell = uc $shell;
+if ($shell !~ m/^MSYS|MINGW32|MINGW64$/) {
+	printf STDERR "Invalid shell '$shell' requested. Valid shells are: MSYS, MINGW32 and MINGW64.\n";
+	pod2usage(1);
+}
+
+if ($arch !~ m/^x86_64|i686$/) {
+	printf STDERR "Invalid arch '$arch' requested. Valid archs are: i686 and x86_64.\n";
+	pod2usage(1);
+}
+
+$prefix = File::Spec->rel2abs($prefix);
+
+################################################################################
+# Setup the environment
+################################################################################
+
+$ENV{TERM} = "xterm";
+$ENV{MSYSTEM} = $shell;
+$ENV{WINEDEBUG} = "-all";
+$ENV{WINEPREFIX} = $prefix;
+#$ENV{HOME} = `winepath -w "\$PWD/home/krakonos"`;
+my $arch_dir = ($arch =~ m/i686/)? "msys32" : "msys64";
+
+################################################################################
+## Initialize the environment if requested
+################################################################################
+
+if ($do_init) {
+	printf STDERR "---> Initialization in progress.\n";
+	system("wineboot");
+	chdir($prefix);
+	chdir("drive_c");
+	if (-d $arch_dir) {
+		die "The arch directory seems to already exist. Aborting.";
+	}
+
+	if (!-f $fetch_filename->{$arch}) {
+		system("wget -c '$fetch_url->{$arch}'");
+	} else {
+		printf STDERR "---> Base system already fetched.\n";
+	}
+
+	printf STDERR "---> Extracting.\n";
+	system("tar -xJf '$fetch_filename->{$arch}'");
+	chdir($arch_dir);
+
+	system("rmdir var/cache/pacman/pkg");
+	system("mkdir ../pkgcache");
+	system("ln -s ../../../../pkgcache var/cache/pacman/pkg");
+
+	printf STDERR "---> Running first console.\n";
+	my $ret = system("wine wineconsole --backend=curses usr/bin/bash -l -c 'echo First initialization successful.; pwd; sleep 5s'");
+	printf STDERR "---> First run returned: $ret.\n";
+}
+
+sub run_command {
+	my ($cmd) = @_;
+	if ($cmd =~ m/'/) {
+		die "Sorry, the command can't be anything elaborate...";
+	}
+	printf STDERR "-----> Running command: $cmd.\n";
+	my $ret = system("wine wineconsole --backend=curses usr/bin/bash -l -c '$cmd'");
+	printf STDERR "-----> Command returned: $ret.\n";
+
+}
+
+chdir($prefix);
+chdir("drive_c/$arch_dir") or die "The architecture $arch is not initialized. Perhaps you didn't run --init?";
+system("pwd");
+
+if ($do_update) {
+	printf STDERR "---> Running updates (1/4).\n";
+	run_command("pacman -Syy --noconfirm --noprogressbar pacman");
+	printf STDERR "---> Running updates (2/4).\n";
+	run_command("pacman -Suu --needed --noconfirm --noprogressbar");
+	printf STDERR "---> Running updates (3/4).\n";
+	run_command("pacman -Suu --needed --noconfirm --noprogressbar && pacman -Scc --noconfirm");
+	printf STDERR "---> Running updates (4/4).\n";
+	printf STDERR "---> Done!.\n";
+}
+
+
+################################################################################
+## Run the console if requested
+################################################################################
+
+if ($console) {
+	exec("wine wineconsole --backend=curses usr/bin/bash --login");
+}
+
+################################################################################
+# Only documentation follows
+################################################################################
+
+__END__
+
+=head1 NAME
+
+MSYS2 Wine shell wrapper
+
+=head1 SYNOPSIS
+
+./msysww [options]
+
+=head1 DESCRIPTION
+
+B<MSYS2 Wine wrapper> will initialize your MSYS2 environment under Wine and
+provide access to it's shell in a convenient way.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-h, --help>
+
+Show this help.
+
+=back
+
+=item B<-c, --console>
+
+Run an interactive console.
+
+=back
+
+=item B<-i, --init>
+
+Initialize the environment selected by other options. This downloads MSYS2 base
+system and prepares the shell.
+
+=back
+
+=item B<-u, --update>
+
+Update the environment selected by other options. This updates every package in
+MSYS2, taking care to update core packages first.
+
+=back
+
+
+=item B<-p PREFIX, --prefix=PREFIX>
+
+Select a WINEPREFIX to use. 
+
+Default:  ~/.msysww
+
+=back
+
+=item B<-s SHELL, --shell=SHELL>
+
+Select a specific shell. Valid values are MSYS, MINGW32 and MINGW64.
+
+=back
+
+=item B<-a ARCH, --arch=ARCH>
+
+Select MSYS2 architecture. Valid values are: i686, x86_64.
+
+Default: x86_64
+
+=back
+
+=back
+
+=cut
