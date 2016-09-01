@@ -7,7 +7,7 @@ Although it might seem easy to use, you are still likely to
 hit a few bugs here and there. Please see the following wiki for more info on
 MSYS2 under wine, in case you need to tune something manually:
 
-https://github.com/fracting/wine-fracting/wiki/MSYS2-on-Wine
+https://github.com/TeaCI/tea-ci/wiki/Msys2-on-Wine
 
 Feel free to post issues, I will try to incorporate fixes and/or workarounds
 into this script. However, I'm no wine expert and all bugs should still be
