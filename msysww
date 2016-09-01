@@ -82,7 +82,8 @@ $ENV{TERM} = "xterm";
 $ENV{MSYSTEM} = $shell;
 $ENV{WINEDEBUG} = "-all";
 $ENV{WINEPREFIX} = $prefix;
-#$ENV{HOME} = `winepath -w "\$PWD/home/krakonos"`;
+$ENV{HOST_HOME} = `winepath -w "\$HOME"`;
+$ENV{HOST_ROOT} = `winepath -w "/"`;
 my $arch_dir = ($arch =~ m/i686/)? "msys32" : "msys64";
 
 ################################################################################
