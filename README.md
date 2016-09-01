@@ -48,6 +48,17 @@ usually won't need to delete the whole prefix. However if you have to you might
 want to store `drive_c/pkgcache`, as it contains downloaded packages (shared
 across `i686` and `x86_64` versions).
 
+## Environment variables
+
+Only `HOME`, `USER` and `PATH` variables are kept from the host system. This
+will make the MSYS environment more predictable, as some variables may have
+unexpected sideeffects. You can add exceptions to the list `@env_keep_vars` in
+the script.
+
+Moreover, the variables `HOST_ROOT` and `HOST_HOME` are created for
+convenience, pointing to the root and home directory of the host system (and
+user), as returned by `winepath`.
+
 ## Credits
 
 This script was made thanks to the TeaCI project by Qian Hong
