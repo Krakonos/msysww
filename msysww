@@ -69,6 +69,15 @@ $prefix = File::Spec->rel2abs($prefix);
 # Setup the environment
 ################################################################################
 
+my @env_keep_vars = qw(USER HOME PATH);
+
+my @env_keys = keys %ENV;
+for my $key (@env_keys) {
+	if (! grep { $_ eq $key } @env_keep_vars) {
+		delete $ENV{$key};
+	}
+}
+
 $ENV{TERM} = "xterm";
 $ENV{MSYSTEM} = $shell;
 $ENV{WINEDEBUG} = "-all";
